@@ -30,15 +30,16 @@ jobs:
       contents: write
     outputs:
       updated: ${{ steps.makever.outputs.updated }}
-      dockerpath: ${{ steps.makever.outputs.dockerpath }}
       tag: ${{ steps.makever.outputs.tag }}
+      ntag: ${{ steps.makever.outputs.ntag }}
+      body: ${{ steps.makever.outputs.body }}
     steps:
       - uses: actions/checkout@master
 
-      - name: run update script
+      - name: run check_update script
         id: makever
         run: |
-          chmod +x update.sh && ./update.sh
+          chmod +x check_update.sh && ./check_update.sh
 
       - name: Install Go
         if: success() && steps.makever.outputs.updated == '1'
@@ -57,11 +58,13 @@ jobs:
         if: success() && steps.makever.outputs.updated == '1'
         run: |
           xcaddy build --with github.com/xcaddyplugins/caddy-trusted-cloudfront
+          tar -czvf caddy_${{ steps.makever.outputs.ntag }}_with_trusted_cloudfront_linux_amd64.tar.gz caddy
 
       - name: Release
         uses: softprops/action-gh-release@master
         if: success() && steps.makever.outputs.updated == '1'
         with:
-          files: caddy
+          files: caddy_${{ steps.makever.outputs.ntag }}_with_trusted_cloudfront_linux_amd64.tar.gz
           tag_name: ${{ steps.makever.outputs.tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
+          body: ${{ steps.makever.outputs.body }}
