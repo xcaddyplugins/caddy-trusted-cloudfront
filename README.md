@@ -21,7 +21,7 @@ trusted_proxies cloudfront {
 }
 ```
 
-- `interval` How often to fetch the latest IP list. format is [Golang Duration](https://pkg.go.dev/time#ParseDuration). For example `12h` represents **12 hours**, and "1d" represents **one day**. default value `1d`.
+- `interval` How often to fetch the latest IP list. format is [caddy.Duration](https://caddyserver.com/docs/conventions#durations). For example `12h` represents **12 hours**, and "1d" represents **one day**. default value `1d`.
 
 ## `Caddyfile` Example
 
