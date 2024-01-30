@@ -8,19 +8,8 @@ on:
 
 jobs:
   build:
-    strategy:
-      matrix:
-        os:
-          - ubuntu-latest
-        go:
-          - "1.21"
+    runs-on: ubuntu-latest
 
-        include:
-          # Set the minimum Go patch version for the given Go minor
-          # Usable via ${{ matrix.GO_SEMVER }}
-          - go: "1.21"
-            GO_SEMVER: "~1.21.0"
-    runs-on: ${{ matrix.os }}
     # https://github.com/sigstore/cosign/issues/1258#issuecomment-1002251233
     # https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect#adding-permissions-settings
     permissions:
@@ -28,43 +17,89 @@ jobs:
       # https://docs.github.com/en/rest/overview/permissions-required-for-github-apps#permission-on-contents
       # "Releases" is part of `contents`, so it needs the `write`
       contents: write
-    outputs:
-      updated: ${{ steps.makever.outputs.updated }}
-      tag: ${{ steps.makever.outputs.tag }}
-      ntag: ${{ steps.makever.outputs.ntag }}
-      body: ${{ steps.makever.outputs.body }}
+
     steps:
       - uses: actions/checkout@master
 
-      - name: run check_update script
-        id: makever
+      - name: Install deps
         run: |
-          chmod +x check_update.sh && ./check_update.sh
+          sudo apt-get install -y zip jq git
+          # mkdir dist out tmp
+
+      - name: Make vars
+        if: success()
+        id: vars
+        run: |
+          CADDY_LATEST_JSON=`curl -s https://api.github.com/repos/caddyserver/caddy/releases/latest`
+          CADDY_TAG=$(echo $CADDY_LATEST_JSON | jq -r '.tag_name')
+          VERSION_TAG=${CADDY_TAG:1}
+          echo "caddy_tag=${CADDY_TAG}" >> $GITHUB_OUTPUT
+          echo "version_tag=${VERSION_TAG}" >> $GITHUB_OUTPUT
+          SELF_LATEST_JSON=`curl -s https://api.github.com/repos/xcaddyplugins/caddy-trusted-cloudfront/releases/latest`
+          SELF_TAG=$(echo $SELF_LATEST_JSON | jq -r '.tag_name')
+          HTML_URL=$(echo $CADDY_LATEST_JSON | jq -r '.html_url')
+          BODY="## Caddy [${CADDY_TAG}](${HTML_URL}) with trusted CloudFront plugin"
+          echo "body=${BODY}" >> $GITHUB_OUTPUT
+          [ "$CADDY_TAG" = "$SELF_TAG" ] && RESULT="0" || RESULT="1"
+          echo "updated=${RESULT}" >> $GITHUB_OUTPUT
+
+      - name: Print Vars
+        if: success()
+        run: |
+          echo "caddy_tag=${{ steps.vars.outputs.caddy_tag }}"
+          echo "version_tag=${{ steps.vars.outputs.version_tag }}"
+          echo "body=${{ steps.vars.outputs.body }}"
+          echo "updated=${{ steps.vars.outputs.updated }}"
 
       - name: Install Go
-        if: success() && steps.makever.outputs.updated == '1'
+        if: success() && steps.vars.outputs.updated == '1'
         uses: actions/setup-go@master
         with:
-          go-version: ${{ matrix.GO_SEMVER }}
+          go-version: ~1.21.0
           check-latest: true
 
-      - name: Install xcaddy
-        if: success() && steps.makever.outputs.updated == '1'
-        uses: jaxxstorm/action-install-gh-release@master
-        with:
-          repo: caddyserver/xcaddy
+      - name: Download and Patch Caddy Source
+        if: success() && steps.vars.outputs.updated == '1'
+        run: |
+          printf "Cleanup plugin sources...\n\n"
+          rm -f *
+          printf "Download Source...\n\n"
+          mkdir tmp
+          curl -L -o tmp/caddy.tar.gz "https://github.com/caddyserver/caddy/archive/refs/tags/${{ steps.vars.outputs.caddy_tag }}.tar.gz"
+          printf "Extract Source...\n\n"
+          tar -xzf tmp/caddy.tar.gz -C tmp/
+          mv tmp/caddy-${{ steps.vars.outputs.version_tag }}/* .
+          rm -rf tmp/
+          printf "Patch Source...\n\n"
+          sed -i '/\/modules\/standard"/a _ "github.com\/xcaddyplugins\/caddy-trusted-cloudfront"' cmd/caddy/main.go
+          printf "go mod tidy\n"
+          go mod tidy
 
       - name: Build
-        if: success() && steps.makever.outputs.updated == '1'
+        if: success() && steps.vars.outputs.updated == '1'
+        env:
+          CGO_ENABLED: 0
+          GO111MODULE: on
         run: |
-          xcaddy build --with github.com/xcaddyplugins/caddy-trusted-cloudfront
-          tar -czvf caddy_${{ steps.makever.outputs.ntag }}_with_trusted_cloudfront_linux_amd64.tar.gz caddy
+          mkdir dist
+          printf "build linux amd64...\n"
+          GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -trimpath ./cmd/caddy && tar -czf dist/caddy_${{ steps.vars.outputs.version_tag }}_with_trusted_cloudfront_linux_amd64.tar.gz caddy
+          printf "build linux arm64...\n"
+          GOOS=linux GOARCH=arm64 go build -ldflags="-w -s" -trimpath ./cmd/caddy && tar -czf dist/caddy_${{ steps.vars.outputs.version_tag }}_with_trusted_cloudfront_linux_arm64.tar.gz caddy
+          printf "build windows amd64...\n"
+          GOOS=windows GOARCH=amd64 go build -ldflags="-w -s" -trimpath ./cmd/caddy && zip -r dist/caddy_${{ steps.vars.outputs.version_tag }}_with_trusted_cloudfront_windows_amd64.zip caddy.exe
+          printf "build windows arm64...\n"
+          GOOS=windows GOARCH=arm64 go build -ldflags="-w -s" -trimpath ./cmd/caddy && zip -r dist/caddy_${{ steps.vars.outputs.version_tag }}_with_trusted_cloudfront_windows_arm64.zip caddy.exe
 
-      - name: Release
+      - name: Publish
+        if: success() && steps.vars.outputs.updated == '1'
         uses: softprops/action-gh-release@master
-        if: success() && steps.makever.outputs.updated == '1'
         with:
-          files: caddy_${{ steps.makever.outputs.ntag }}_with_trusted_cloudfront_linux_amd64.tar.gz
-          tag_name: ${{ steps.makever.outputs.tag }}
+          files: |
+            dist/caddy_${{ steps.vars.outputs.version_tag }}_with_trusted_cloudfront_linux_amd64.tar.gz
+            dist/caddy_${{ steps.vars.outputs.version_tag }}_with_trusted_cloudfront_linux_arm64.tar.gz
+            dist/caddy_${{ steps.vars.outputs.version_tag }}_with_trusted_cloudfront_windows_amd64.zip
+            dist/caddy_${{ steps.vars.outputs.version_tag }}_with_trusted_cloudfront_windows_arm64.zip
+          tag_name: ${{ steps.vars.outputs.caddy_tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
-          body: ${{ steps.makever.outputs.body }}
+          body: ${{ steps.vars.outputs.body }}
