@@ -7,7 +7,18 @@ The module auto trusted_proxies `AWS CloudFront EDGE servers` from https://d7uri
 - [Go installed](https://golang.org/doc/install)
 - [xcaddy](https://github.com/caddyserver/xcaddy)
 
-## Build
+## Install
+
+The simplest, cross-platform way to get started is to download Caddy from [GitHub Releases](https://github.com/xcaddyplugins/caddy-trusted-cloudfront/releases) and place the executable file in your PATH.
+
+## Build from source
+
+Requirements:
+
+- [Go installed](https://golang.org/doc/install)
+- [xcaddy](https://github.com/caddyserver/xcaddy)
+
+Build:
 
 ```bash
 $ xcaddy build --with github.com/xcaddyplugins/caddy-trusted-cloudfront
@@ -17,7 +28,7 @@ $ xcaddy build --with github.com/xcaddyplugins/caddy-trusted-cloudfront
 
 ```caddyfile
 trusted_proxies cloudfront {
-    interval <duration>
+	interval <duration>
 }
 ```
 
@@ -27,6 +38,24 @@ trusted_proxies cloudfront {
 
 ```caddyfile
 trusted_proxies cloudfront {
-    interval 1d
+	interval 1d
+}
+```
+
+### `Caddyfile` Use Default Settings Example
+
+```Caddyfile
+trusted_proxies cloudfront
+```
+
+## `Caddyfile` Global Trusted Example
+
+Insert the following configuration of `Caddyfile` to apply it globally.
+
+```Caddyfile
+{
+	servers {
+		trusted_proxies cloudfront
+	}
 }
 ```
