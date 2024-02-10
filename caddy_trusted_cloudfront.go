@@ -21,8 +21,12 @@ func init() {
 	caddy.RegisterModule(CaddyTrustedCloudFront{})
 }
 
+// The module that auto trusted_proxies `AWS CloudFront EDGE servers` from CloudFront.
+// Doc: https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/LocationsOfEdgeServers.html
+// Range from: https://d7uri8nf7uskq.cloudfront.net/tools/list-cloudfront-ips
 type CaddyTrustedCloudFront struct {
-	Interval caddy.Duration `json:"interval,omitempty"` // Update Interval. if emp
+	// Interval to update the trusted proxies list. default: 1d
+	Interval caddy.Duration `json:"interval,omitempty"`
 	ranges   []netip.Prefix
 	ctx      caddy.Context
 	lock     *sync.RWMutex
