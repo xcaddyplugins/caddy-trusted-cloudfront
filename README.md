@@ -1,5 +1,5 @@
 [![Build Status](https://github.com/xcaddyplugins/caddy-trusted-cloudfront/workflows/update/badge.svg)](https://github.com/xcaddyplugins/caddy-trusted-cloudfront)
-[![Licenses](https://img.shields.io/github/license/github.com/xcaddyplugins/caddy-trusted-cloudfront)](LICENSE)
+[![Licenses](https://img.shields.io/github/license/xcaddyplugins/caddy-trusted-cloudfront)](LICENSE)
 [![donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.buymeacoffee.com/illi)
 
 # trusted_proxies cloudfront module for `Caddy`
