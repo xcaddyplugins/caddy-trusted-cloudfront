@@ -1,3 +1,7 @@
+[![Build Status](https://github.com/github.com/xcaddyplugins/caddy-trusted-cloudfront/workflows/update/badge.svg)](https://github.com/github.com/xcaddyplugins/caddy-trusted-cloudfront)
+[![Licenses](https://img.shields.io/github/license/github.com/xcaddyplugins/caddy-trusted-cloudfront)](LICENSE)
+[![donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.buymeacoffee.com/illi)
+
 # trusted_proxies cloudfront module for `Caddy`
 
 The module auto trusted_proxies `AWS CloudFront EDGE servers` from https://d7uri8nf7uskq.cloudfront.net/tools/list-cloudfront-ips
