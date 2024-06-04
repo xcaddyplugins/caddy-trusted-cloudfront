@@ -19,12 +19,9 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@master
-
-      - name: Install deps
+      - name: Install deps for vars
         run: |
-          sudo apt-get install -y zip jq git
-          # mkdir dist out tmp
+          sudo apt-get install -y jq
 
       - name: Make vars
         if: success()
@@ -42,14 +39,18 @@ jobs:
           echo "body=${BODY}" >> $GITHUB_OUTPUT
           [ "$CADDY_TAG" = "$SELF_TAG" ] && RESULT="0" || RESULT="1"
           echo "updated=${RESULT}" >> $GITHUB_OUTPUT
+          echo "self_tag=${SELF_TAG}" >> $GITHUB_OUTPUT
 
       - name: Print Vars
         if: success()
         run: |
           echo "caddy_tag=${{ steps.vars.outputs.caddy_tag }}"
           echo "version_tag=${{ steps.vars.outputs.version_tag }}"
+          echo "self_tag=${{ steps.vars.outputs.self_tag }}"
           echo "body=${{ steps.vars.outputs.body }}"
           echo "updated=${{ steps.vars.outputs.updated }}"
+
+      - uses: actions/checkout@main
 
       - name: Install Go
         if: success() && steps.vars.outputs.updated == '1'
@@ -74,6 +75,11 @@ jobs:
           sed -i '/\/modules\/standard"/a _ "github.com\/xcaddyplugins\/caddy-trusted-cloudfront"' cmd/caddy/main.go
           printf "go mod tidy\n"
           go mod tidy
+
+      - name: Install deps
+        if: success() && steps.vars.outputs.updated == '1'
+        run: |
+          sudo apt-get install -y zip
 
       - name: Build
         if: success() && steps.vars.outputs.updated == '1'
